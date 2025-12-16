@@ -1,0 +1,20 @@
+# Pub publish ignore list.
+# If this file exists, it overrides .gitignore for pub.dev packaging.
+
+# Internal / maintainer-only docs
+flutter_mobile_sdk_plan.md
+docs/RELEASE.md
+local-release/
+
+# Tooling / CI
+.github/
+
+# Misc build and editor artifacts (redundant with .gitignore but explicit)
+.dart_tool/
+.idea/
+.vscode/
+build/
+**/Pods/
+**/DerivedData/
+**/local.properties
+

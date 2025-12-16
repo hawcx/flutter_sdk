@@ -1,0 +1,54 @@
+Hawcx Proprietary License
+
+Copyright (c) 2025 Hawcx, Inc. All Rights Reserved.
+
+GRANT OF LICENSE
+
+Subject to the terms and conditions of this License, Hawcx, Inc. ("Hawcx") 
+grants to authorized clients ("Licensee") a limited, non-exclusive, 
+non-transferable, non-sublicensable license to use this software and 
+associated documentation files (the "Software") solely for:
+
+1. Proof of Concept (POC) evaluation purposes, or
+2. Commercial use in production environments as explicitly authorized by Hawcx
+
+RESTRICTIONS
+
+Licensee shall NOT:
+- Modify, alter, or create derivative works of the Software
+- Distribute, sublicense, lease, rent, or transfer the Software to any third party
+- Reverse engineer, decompile, or disassemble the Software
+- Use the Software for any unlawful purpose or in violation of applicable laws
+
+CONFIDENTIALITY
+
+The Software contains proprietary information. Licensee shall keep the Software 
+and any related documentation confidential and shall not disclose or provide 
+access to any third party without Hawcx's prior written consent.
+
+NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL 
+HAWCX BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL HAWCX BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
+OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+TERMINATION
+
+This License is effective until terminated. Hawcx may terminate this License 
+at any time if Licensee fails to comply with any term of this License. Upon 
+termination, Licensee must cease all use of the Software and destroy all 
+copies in its possession.
+

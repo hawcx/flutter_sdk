@@ -1,0 +1,54 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android related
+**/gradle-wrapper.jar
+**/local.properties
+**/GeneratedPluginRegistrant.java
+**/key.properties
+*.jks
+
+# iOS/Xcode related
+**/Pods/
+**/.symlinks/
+**/DerivedData/
+**/Flutter/Flutter.framework
+**/Flutter/Flutter.podspec
+**/Flutter/App.framework
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+**/Flutter/ephemeral/
+**/xcuserdata/
+**/*.xcworkspace
+
+# Internal / maintainer-only files (keep out of public surface)
+flutter_mobile_sdk_plan.md
+docs/RELEASE.md
+local-release/

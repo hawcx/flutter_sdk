@@ -1,0 +1,69 @@
+group 'com.hawcx.flutter_sdk'
+version '0.0.1'
+
+buildscript {
+  ext.kotlin_version = '1.9.22'
+  repositories {
+    maven {
+      url = uri("https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven")
+      credentials {
+        username = System.getenv("GITHUB_USER") ?: ""
+        password = System.getenv("GITHUB_TOKEN") ?: ""
+      }
+      metadataSources {
+        mavenPom()
+        artifact()
+      }
+    }
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'com.android.tools.build:gradle:8.2.2'
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
+
+allprojects {
+  repositories {
+    maven {
+      url = uri("https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven")
+      credentials {
+        username = System.getenv("GITHUB_USER") ?: ""
+        password = System.getenv("GITHUB_TOKEN") ?: ""
+      }
+      metadataSources {
+        mavenPom()
+        artifact()
+      }
+    }
+    google()
+    mavenCentral()
+  }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+  namespace 'com.hawcx.flutter_sdk'
+  compileSdkVersion 34
+
+  defaultConfig {
+    minSdkVersion 21
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+}
+
+dependencies {
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+  api "api.hawcx:hawcx:5.1.2"
+}
