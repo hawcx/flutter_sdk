@@ -1,75 +1,58 @@
 import 'dart:async';
-import 'package:flutter/services.dart';
+
+import 'errors.dart';
+import 'models/config.dart';
+import 'models/events.dart';
+import 'platform/hawcx_flutter_sdk_platform.dart';
 
 class HawcxFlutterSdk {
   HawcxFlutterSdk._();
 
-  static const MethodChannel _channel = MethodChannel('hawcx_flutter');
-  static const EventChannel _events = EventChannel('hawcx_flutter/events');
-
-  static Stream<dynamic> get events => _events.receiveBroadcastStream();
-
-  static Future<void> initialize({
-    required String apiKey,
-    String? baseUrl,
-    Map<String, dynamic>? oauthConfig,
-  }) async {
-    if (apiKey.isEmpty) {
-      throw ArgumentError('apiKey is required');
-    }
-    await _channel.invokeMethod<void>('initialize', {
-      'apiKey': apiKey,
-      if (baseUrl != null) 'baseUrl': baseUrl,
-      if (oauthConfig != null) 'oauthConfig': oauthConfig,
-    });
+  static Stream<HawcxEvent> get events {
+    return HawcxFlutterSdkPlatform.instance.rawEvents
+        .map(HawcxEvent.fromNative)
+        .whereType<HawcxEvent>();
   }
 
-  static Future<Map<String, dynamic>?> authenticateV5({
-    required String userId,
-  }) async {
-    if (userId.isEmpty) {
+  static Stream<AuthEvent> get authEvents => events.whereType<AuthEvent>();
+  static Stream<SessionEvent> get sessionEvents => events.whereType<SessionEvent>();
+  static Stream<PushEvent> get pushEvents => events.whereType<PushEvent>();
+
+  static Future<void> initialize(HawcxConfig config) {
+    return HawcxFlutterSdkPlatform.instance.initialize(config.toMap());
+  }
+
+  static Future<void> authenticateV5({required String userId}) async {
+    final trimmed = userId.trim();
+    if (trimmed.isEmpty) {
       throw ArgumentError('userId is required');
     }
-    final result = await _channel.invokeMethod<Map<Object?, Object?>>('authenticateV5', {
-      'userId': userId,
-    });
-    return result?.cast<String, dynamic>();
+    await HawcxFlutterSdkPlatform.instance.authenticateV5(trimmed);
   }
 
-  static Future<Map<String, dynamic>?> submitOtpV5({
-    required String otp,
-    required String userId,
-  }) async {
+  static Future<void> submitOtpV5({required String otp}) async {
     if (otp.isEmpty) {
       throw ArgumentError('otp is required');
     }
-    if (userId.isEmpty) {
-      throw ArgumentError('userId is required');
-    }
-    final result = await _channel.invokeMethod<Map<Object?, Object?>>('submitOtpV5', {
-      'otp': otp,
-      'userId': userId,
-    });
-    return result?.cast<String, dynamic>();
+    await HawcxFlutterSdkPlatform.instance.submitOtpV5(otp.trim());
   }
 
-  static Future<Map<String, dynamic>?> getDeviceDetails() async {
-    final result = await _channel.invokeMethod<Map<Object?, Object?>>('getDeviceDetails');
-    return result?.cast<String, dynamic>();
+  static Future<void> getDeviceDetails() {
+    return HawcxFlutterSdkPlatform.instance.getDeviceDetails();
   }
 
   static Future<void> webLogin({required String pin}) async {
     if (pin.isEmpty) {
       throw ArgumentError('pin is required');
     }
-    await _channel.invokeMethod<void>('webLogin', {'pin': pin});
+    await HawcxFlutterSdkPlatform.instance.webLogin(pin.trim());
   }
 
   static Future<void> webApprove({required String token}) async {
     if (token.isEmpty) {
       throw ArgumentError('token is required');
     }
-    await _channel.invokeMethod<void>('webApprove', {'token': token});
+    await HawcxFlutterSdkPlatform.instance.webApprove(token.trim());
   }
 
   static Future<bool> storeBackendOAuthTokens({
@@ -77,56 +60,56 @@ class HawcxFlutterSdk {
     required String accessToken,
     String? refreshToken,
   }) async {
-    if (userId.isEmpty) {
+    final trimmedUser = userId.trim();
+    if (trimmedUser.isEmpty) {
       throw ArgumentError('userId is required');
     }
-    if (accessToken.isEmpty) {
+    final trimmedAccess = accessToken.trim();
+    if (trimmedAccess.isEmpty) {
       throw ArgumentError('accessToken is required');
     }
-    final stored = await _channel.invokeMethod<bool>('storeBackendOAuthTokens', {
-      'userId': userId,
-      'accessToken': accessToken,
-      if (refreshToken != null) 'refreshToken': refreshToken,
-    });
-    return stored ?? false;
+    final trimmedRefresh = refreshToken?.trim();
+    return HawcxFlutterSdkPlatform.instance.storeBackendOAuthTokens(
+      userId: trimmedUser,
+      accessToken: trimmedAccess,
+      refreshToken: trimmedRefresh?.isEmpty == true ? null : trimmedRefresh,
+    );
   }
 
   static Future<String> getLastLoggedInUser() async {
-    return (await _channel.invokeMethod<String>('getLastLoggedInUser')) ?? '';
+    return HawcxFlutterSdkPlatform.instance.getLastLoggedInUser();
   }
 
   static Future<void> clearSessionTokens({required String userId}) async {
     if (userId.isEmpty) {
       throw ArgumentError('userId is required');
     }
-    await _channel.invokeMethod<void>('clearSessionTokens', {'userId': userId});
+    await HawcxFlutterSdkPlatform.instance.clearSessionTokens(userId.trim());
   }
 
   static Future<void> clearUserKeychainData({required String userId}) async {
     if (userId.isEmpty) {
       throw ArgumentError('userId is required');
     }
-    await _channel.invokeMethod<void>('clearUserKeychainData', {'userId': userId});
+    await HawcxFlutterSdkPlatform.instance.clearUserKeychainData(userId.trim());
   }
 
   static Future<void> clearLastLoggedInUser() async {
-    await _channel.invokeMethod<void>('clearLastLoggedInUser');
+    await HawcxFlutterSdkPlatform.instance.clearLastLoggedInUser();
   }
 
   static Future<void> setApnsDeviceToken({required String tokenBase64OrHex}) async {
     if (tokenBase64OrHex.isEmpty) {
       throw ArgumentError('tokenBase64OrHex is required');
     }
-    await _channel.invokeMethod<void>('setApnsDeviceToken', {
-      'token': tokenBase64OrHex,
-    });
+    await HawcxFlutterSdkPlatform.instance.setApnsDeviceToken(tokenBase64OrHex.trim());
   }
 
   static Future<void> setFcmToken({required String token}) async {
     if (token.isEmpty) {
       throw ArgumentError('token is required');
     }
-    await _channel.invokeMethod<void>('setFcmToken', {'token': token});
+    await HawcxFlutterSdkPlatform.instance.setFcmToken(token.trim());
   }
 
   static Future<void> setPushToken({
@@ -136,31 +119,31 @@ class HawcxFlutterSdk {
     if (token.isEmpty) {
       throw ArgumentError('token is required');
     }
-    await _channel.invokeMethod<void>('setPushToken', {
-      'token': token,
-      'platform': platform,
-    });
+    await HawcxFlutterSdkPlatform.instance.setPushToken(token: token.trim(), platform: platform.trim());
   }
 
   static Future<void> userDidAuthenticate() async {
-    await _channel.invokeMethod<void>('userDidAuthenticate');
+    await HawcxFlutterSdkPlatform.instance.userDidAuthenticate();
   }
 
-  static Future<void> handlePushNotification(Map<String, dynamic> payload) async {
-    await _channel.invokeMethod<void>('handlePushNotification', payload);
+  static Future<bool> handlePushNotification(Map<String, Object?> payload) async {
+    return HawcxFlutterSdkPlatform.instance.handlePushNotification(payload);
   }
 
   static Future<void> approvePushRequest({required String requestId}) async {
     if (requestId.isEmpty) {
       throw ArgumentError('requestId is required');
     }
-    await _channel.invokeMethod<void>('approvePushRequest', {'requestId': requestId});
+    await HawcxFlutterSdkPlatform.instance.approvePushRequest(requestId.trim());
   }
 
   static Future<void> declinePushRequest({required String requestId}) async {
     if (requestId.isEmpty) {
       throw ArgumentError('requestId is required');
     }
-    await _channel.invokeMethod<void>('declinePushRequest', {'requestId': requestId});
+    await HawcxFlutterSdkPlatform.instance.declinePushRequest(requestId.trim());
   }
+
+  @Deprecated('Use HawcxFlutterSdkPlatform in tests instead.')
+  static HawcxAuthException authCancelledError() => HawcxAuthException.cancelled();
 }

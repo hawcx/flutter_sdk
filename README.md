@@ -58,11 +58,25 @@ The plugin links the Hawcx iOS SDK as a vendored xcframework (`ios/Frameworks/Ha
 ```dart
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
 
-await HawcxFlutterSdk.initialize(
-  apiKey: '<PROJECT_API_KEY>',
+final client = HawcxClient();
+await client.initialize(HawcxConfig(
+  projectApiKey: '<PROJECT_API_KEY>',
   baseUrl: 'https://api.hawcx.com',
+));
+
+final auth = client.authenticate(
+  userId: 'user@example.com',
+  onOtpRequired: () {
+    // prompt user
+  },
 );
+
+// later, when OTP entered:
+await client.submitOtp('123456');
+
+final success = await auth.future;
+// success.isLoginFlow, success.accessToken, success.refreshToken
 ```
 
-The full API surface (authenticate/OTP, session, web login/approve, push handling) will be added in subsequent phases.  
+The full API surface (session, web login/approve, push handling, OAuth helpers) will be expanded in subsequent phases.  
 See `flutter_mobile_sdk_plan.md` for the delivery roadmap.

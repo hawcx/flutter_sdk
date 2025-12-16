@@ -1,125 +1,218 @@
-import 'package:flutter/services.dart';
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
+import 'package:hawcx_flutter_sdk/src/platform/hawcx_flutter_sdk_platform.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+class FakeHawcxPlatform extends HawcxFlutterSdkPlatform with MockPlatformInterfaceMixin {
+  final _events = StreamController<Object?>.broadcast();
+  final calls = <Map<String, Object?>>[];
 
-  const channel = MethodChannel('hawcx_flutter');
+  void emit(Map<String, Object?> event) => _events.add(event);
 
-  setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall call) async {
-      switch (call.method) {
-        case 'initialize':
-          return null;
-        case 'authenticateV5':
-          return <String, Object?>{'status': 'ok'};
-        case 'submitOtpV5':
-          return <String, Object?>{'token': 't'};
-        case 'getDeviceDetails':
-          return <String, Object?>{'deviceId': 'd'};
-        case 'setPushToken':
-          return null;
-        case 'handlePushNotification':
-          return null;
-        default:
-          throw PlatformException(
-            code: 'unimplemented',
-            message: 'No mock for ${call.method}',
-          );
-      }
+  @override
+  Stream<Object?> get rawEvents => _events.stream;
+
+  @override
+  Future<void> initialize(Map<String, Object?> config) async {
+    calls.add({'method': 'initialize', 'args': config});
+  }
+
+  @override
+  Future<void> authenticateV5(String userId) async {
+    calls.add({'method': 'authenticateV5', 'userId': userId});
+  }
+
+  @override
+  Future<void> submitOtpV5(String otp) async {
+    calls.add({'method': 'submitOtpV5', 'otp': otp});
+  }
+
+  @override
+  Future<void> getDeviceDetails() async {
+    calls.add({'method': 'getDeviceDetails'});
+  }
+
+  @override
+  Future<void> webLogin(String pin) async {
+    calls.add({'method': 'webLogin', 'pin': pin});
+  }
+
+  @override
+  Future<void> webApprove(String token) async {
+    calls.add({'method': 'webApprove', 'token': token});
+  }
+
+  @override
+  Future<bool> storeBackendOAuthTokens({
+    required String userId,
+    required String accessToken,
+    String? refreshToken,
+  }) async {
+    calls.add({
+      'method': 'storeBackendOAuthTokens',
+      'userId': userId,
+      'accessToken': accessToken,
+      if (refreshToken != null) 'refreshToken': refreshToken,
     });
-  });
+    return true;
+  }
 
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
-  });
+  @override
+  Future<String> getLastLoggedInUser() async {
+    calls.add({'method': 'getLastLoggedInUser'});
+    return 'u';
+  }
 
-  test('initialize validates apiKey', () async {
-    expect(
-      () => HawcxFlutterSdk.initialize(apiKey: ''),
-      throwsArgumentError,
-    );
-  });
+  @override
+  Future<void> clearSessionTokens(String userId) async {
+    calls.add({'method': 'clearSessionTokens', 'userId': userId});
+  }
 
-  test('initialize sends args', () async {
-    MethodCall? last;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall call) async {
-      last = call;
-      return null;
-    });
+  @override
+  Future<void> clearUserKeychainData(String userId) async {
+    calls.add({'method': 'clearUserKeychainData', 'userId': userId});
+  }
 
-    await HawcxFlutterSdk.initialize(
-      apiKey: 'k',
-      baseUrl: 'https://example.com',
-      oauthConfig: <String, dynamic>{'clientId': 'c'},
-    );
+  @override
+  Future<void> clearLastLoggedInUser() async {
+    calls.add({'method': 'clearLastLoggedInUser'});
+  }
 
-    expect(last?.method, 'initialize');
-    expect(last?.arguments, <String, Object?>{
-      'apiKey': 'k',
-      'baseUrl': 'https://example.com',
-      'oauthConfig': <String, Object?>{'clientId': 'c'},
-    });
-  });
+  @override
+  Future<void> setApnsDeviceToken(String tokenBase64OrHex) async {
+    calls.add({'method': 'setApnsDeviceToken', 'token': tokenBase64OrHex});
+  }
 
-  test('authenticateV5 sends userId and returns map', () async {
-    MethodCall? last;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall call) async {
-      last = call;
-      return <String, Object?>{'status': 'ok'};
-    });
+  @override
+  Future<void> setFcmToken(String token) async {
+    calls.add({'method': 'setFcmToken', 'token': token});
+  }
 
-    final res = await HawcxFlutterSdk.authenticateV5(userId: 'u');
-    expect(last?.method, 'authenticateV5');
-    expect(last?.arguments, <String, Object?>{'userId': 'u'});
-    expect(res, <String, dynamic>{'status': 'ok'});
-  });
+  @override
+  Future<void> setPushToken({required String token, required String platform}) async {
+    calls.add({'method': 'setPushToken', 'token': token, 'platform': platform});
+  }
 
-  test('submitOtpV5 validates args', () async {
-    expect(
-      () => HawcxFlutterSdk.submitOtpV5(otp: '', userId: 'u'),
-      throwsArgumentError,
-    );
-    expect(
-      () => HawcxFlutterSdk.submitOtpV5(otp: '1', userId: ''),
-      throwsArgumentError,
-    );
-  });
+  @override
+  Future<void> userDidAuthenticate() async {
+    calls.add({'method': 'userDidAuthenticate'});
+  }
 
-  test('getDeviceDetails returns map', () async {
-    final res = await HawcxFlutterSdk.getDeviceDetails();
-    expect(res, <String, dynamic>{'deviceId': 'd'});
-  });
+  @override
+  Future<bool> handlePushNotification(Map<String, Object?> payload) async {
+    calls.add({'method': 'handlePushNotification', 'payload': payload});
+    return payload.containsKey('request_id');
+  }
 
-  test('setPushToken validates token', () async {
-    expect(
-      () => HawcxFlutterSdk.setPushToken(token: '', platform: 'ios'),
-      throwsArgumentError,
-    );
-  });
+  @override
+  Future<void> approvePushRequest(String requestId) async {
+    calls.add({'method': 'approvePushRequest', 'requestId': requestId});
+  }
 
-  test('handlePushNotification forwards payload', () async {
-    MethodCall? last;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall call) async {
-      last = call;
-      return null;
-    });
+  @override
+  Future<void> declinePushRequest(String requestId) async {
+    calls.add({'method': 'declinePushRequest', 'requestId': requestId});
+  }
 
-    await HawcxFlutterSdk.handlePushNotification(<String, dynamic>{
-      'aps': <String, dynamic>{'alert': 'hi'},
-    });
-
-    expect(last?.method, 'handlePushNotification');
-    expect(last?.arguments, <String, Object?>{
-      'aps': <String, Object?>{'alert': 'hi'},
-    });
-  });
+  void close() => _events.close();
 }
 
+void main() {
+  test('HawcxConfig validates required fields', () {
+    expect(
+      () => HawcxConfig(projectApiKey: '', baseUrl: 'https://x'),
+      throwsArgumentError,
+    );
+    expect(
+      () => HawcxConfig(projectApiKey: 'k', baseUrl: ''),
+      throwsArgumentError,
+    );
+  });
+
+  test('HawcxEvent parsing handles unknown events', () {
+    final event = HawcxEvent.fromNative({'type': 'new_event', 'payload': {'x': 1}});
+    expect(event, isA<HawcxUnknownEvent>());
+    expect(event?.type, 'new_event');
+  });
+
+  test('HawcxClient authenticate resolves on auth_success', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    final auth = client.authenticate(userId: 'u');
+    platform.emit({
+      'type': 'auth_success',
+      'payload': {
+        'isLoginFlow': true,
+        'accessToken': 'a',
+        'refreshToken': 'r',
+      }
+    });
+
+    final success = await auth.future;
+    expect(success.isLoginFlow, true);
+    expect(success.accessToken, 'a');
+    expect(success.refreshToken, 'r');
+
+    platform.close();
+  });
+
+  test('HawcxClient authenticate rejects on auth_error', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    final auth = client.authenticate(userId: 'u');
+    platform.emit({
+      'type': 'auth_error',
+      'payload': {'code': 'NETWORK_ERROR', 'message': 'nope'}
+    });
+
+    await expectLater(
+      auth.future,
+      throwsA(isA<HawcxAuthException>().having((e) => e.code, 'code', 'NETWORK_ERROR')),
+    );
+
+    platform.close();
+  });
+
+  test('HawcxClient authenticate cancel rejects with AUTH_CANCELLED', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    final auth = client.authenticate(userId: 'u');
+    auth.cancel();
+
+    await expectLater(
+      auth.future,
+      throwsA(isA<HawcxAuthException>().having((e) => e.code, 'code', HawcxAuthException.cancelledCode)),
+    );
+
+    platform.close();
+  });
+
+  test('HawcxClient session operations resolve on session_success', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    final future = client.fetchDeviceDetails();
+    platform.emit({'type': 'session_success'});
+    await future;
+
+    platform.close();
+  });
+}
 
