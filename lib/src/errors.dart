@@ -21,4 +21,3 @@ final class HawcxAuthException extends HawcxException {
 final class HawcxSessionException extends HawcxException {
   const HawcxSessionException(super.code, super.message);
 }
-

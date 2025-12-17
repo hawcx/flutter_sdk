@@ -30,27 +30,41 @@ sealed class HawcxEvent {
         return const AuthOtpRequiredEvent();
       case 'auth_success':
         final parsed = AuthSuccessPayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : AuthSuccessEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : AuthSuccessEvent(parsed);
       case 'auth_error':
         final parsed = HawcxErrorPayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : AuthErrorEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : AuthErrorEvent(parsed);
       case 'authorization_code':
         final parsed = AuthorizationCodePayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : AuthorizationCodeEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : AuthorizationCodeEvent(parsed);
       case 'additional_verification_required':
         final parsed = AdditionalVerificationRequiredPayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : AdditionalVerificationRequiredEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : AdditionalVerificationRequiredEvent(parsed);
       case 'session_success':
         return const SessionSuccessEvent();
       case 'session_error':
         final parsed = HawcxErrorPayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : SessionErrorEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : SessionErrorEvent(parsed);
       case 'push_login_request':
         final parsed = PushLoginPayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : PushLoginRequestEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : PushLoginRequestEvent(parsed);
       case 'push_error':
         final parsed = HawcxErrorPayload.tryParse(payload);
-        return parsed == null ? HawcxUnknownEvent(type, map) : PushErrorEvent(parsed);
+        return parsed == null
+            ? HawcxUnknownEvent(type, map)
+            : PushErrorEvent(parsed);
       default:
         return HawcxUnknownEvent(type, map);
     }
@@ -79,7 +93,8 @@ final class AuthErrorEvent extends AuthEvent {
   const AuthErrorEvent(this.payload) : super('auth_error');
   final HawcxErrorPayload payload;
 
-  HawcxAuthException toException() => HawcxAuthException(payload.code, payload.message);
+  HawcxAuthException toException() =>
+      HawcxAuthException(payload.code, payload.message);
 }
 
 final class AuthorizationCodeEvent extends AuthEvent {
@@ -88,7 +103,8 @@ final class AuthorizationCodeEvent extends AuthEvent {
 }
 
 final class AdditionalVerificationRequiredEvent extends AuthEvent {
-  const AdditionalVerificationRequiredEvent(this.payload) : super('additional_verification_required');
+  const AdditionalVerificationRequiredEvent(this.payload)
+      : super('additional_verification_required');
   final AdditionalVerificationRequiredPayload payload;
 }
 
@@ -104,7 +120,8 @@ final class SessionErrorEvent extends SessionEvent {
   const SessionErrorEvent(this.payload) : super('session_error');
   final HawcxErrorPayload payload;
 
-  HawcxSessionException toException() => HawcxSessionException(payload.code, payload.message);
+  HawcxSessionException toException() =>
+      HawcxSessionException(payload.code, payload.message);
 }
 
 sealed class PushEvent extends HawcxEvent {
@@ -156,8 +173,11 @@ final class AuthSuccessPayload {
     final refreshToken = payload['refreshToken'];
     return AuthSuccessPayload(
       isLoginFlow: isLoginFlow,
-      accessToken: accessToken is String && accessToken.isNotEmpty ? accessToken : null,
-      refreshToken: refreshToken is String && refreshToken.isNotEmpty ? refreshToken : null,
+      accessToken:
+          accessToken is String && accessToken.isNotEmpty ? accessToken : null,
+      refreshToken: refreshToken is String && refreshToken.isNotEmpty
+          ? refreshToken
+          : null,
     );
   }
 }
@@ -241,4 +261,3 @@ final class PushLoginPayload {
     );
   }
 }
-

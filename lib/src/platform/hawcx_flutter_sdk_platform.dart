@@ -58,4 +58,3 @@ abstract class HawcxFlutterSdkPlatform extends PlatformInterface {
 
   Future<void> declinePushRequest(String requestId);
 }
-

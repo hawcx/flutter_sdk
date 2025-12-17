@@ -27,6 +27,10 @@
 .pub-cache/
 .pub/
 build/
+pubspec.lock
+.fvm/
+.flutter-version
+.tool-versions
 
 # Android related
 **/gradle-wrapper.jar

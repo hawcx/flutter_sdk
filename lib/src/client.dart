@@ -6,10 +6,12 @@ import 'models/events.dart';
 import 'platform/hawcx_flutter_sdk_platform.dart';
 
 class HawcxClient {
-  HawcxClient({HawcxFlutterSdkPlatform? platform}) : _platform = platform ?? HawcxFlutterSdkPlatform.instance {
+  HawcxClient({HawcxFlutterSdkPlatform? platform})
+      : _platform = platform ?? HawcxFlutterSdkPlatform.instance {
     _events = _platform.rawEvents
         .map(HawcxEvent.fromNative)
-        .whereType<HawcxEvent>()
+        .where((event) => event != null)
+        .cast<HawcxEvent>()
         .asBroadcastStream();
   }
 
@@ -17,9 +19,12 @@ class HawcxClient {
   late final Stream<HawcxEvent> _events;
 
   Stream<HawcxEvent> get events => _events;
-  Stream<AuthEvent> get authEvents => _events.whereType<AuthEvent>();
-  Stream<SessionEvent> get sessionEvents => _events.whereType<SessionEvent>();
-  Stream<PushEvent> get pushEvents => _events.whereType<PushEvent>();
+  Stream<AuthEvent> get authEvents =>
+      _events.where((event) => event is AuthEvent).cast<AuthEvent>();
+  Stream<SessionEvent> get sessionEvents =>
+      _events.where((event) => event is SessionEvent).cast<SessionEvent>();
+  Stream<PushEvent> get pushEvents =>
+      _events.where((event) => event is PushEvent).cast<PushEvent>();
 
   bool _initialized = false;
   StreamSubscription<AuthEvent>? _authSubscription;
@@ -34,7 +39,8 @@ class HawcxClient {
     required String userId,
     void Function()? onOtpRequired,
     void Function(AuthorizationCodePayload payload)? onAuthorizationCode,
-    void Function(AdditionalVerificationRequiredPayload payload)? onAdditionalVerificationRequired,
+    void Function(AdditionalVerificationRequiredPayload payload)?
+        onAdditionalVerificationRequired,
     void Function(AuthEvent event)? onEvent,
   }) {
     _requireInitialized();
@@ -75,7 +81,8 @@ class HawcxClient {
         case AuthErrorEvent(:final payload):
           cleanup();
           if (!completer.isCompleted) {
-            completer.completeError(HawcxAuthException(payload.code, payload.message));
+            completer.completeError(
+                HawcxAuthException(payload.code, payload.message));
           }
           break;
       }
@@ -86,7 +93,9 @@ class HawcxClient {
       }
     });
 
-    _platform.authenticateV5(trimmedUserId).catchError((Object error, StackTrace stack) {
+    _platform
+        .authenticateV5(trimmedUserId)
+        .catchError((Object error, StackTrace stack) {
       cleanup();
       if (!completer.isCompleted) {
         completer.completeError(error, stack);
@@ -113,14 +122,16 @@ class HawcxClient {
     await _platform.submitOtpV5(trimmed);
   }
 
-  Future<void> fetchDeviceDetails({void Function(SessionEvent event)? onEvent}) {
+  Future<void> fetchDeviceDetails(
+      {void Function(SessionEvent event)? onEvent}) {
     return _runSessionOperation(
       callNative: _platform.getDeviceDetails,
       onEvent: onEvent,
     );
   }
 
-  Future<void> webLogin(String pin, {void Function(SessionEvent event)? onEvent}) {
+  Future<void> webLogin(String pin,
+      {void Function(SessionEvent event)? onEvent}) {
     _requireInitialized();
     final trimmed = pin.trim();
     if (trimmed.isEmpty) {
@@ -132,7 +143,8 @@ class HawcxClient {
     );
   }
 
-  Future<void> webApprove(String token, {void Function(SessionEvent event)? onEvent}) {
+  Future<void> webApprove(String token,
+      {void Function(SessionEvent event)? onEvent}) {
     _requireInitialized();
     final trimmed = token.trim();
     if (trimmed.isEmpty) {
@@ -212,13 +224,15 @@ class HawcxClient {
     await _platform.setFcmToken(trimmed);
   }
 
-  Future<void> setPushToken({required String token, required String platform}) async {
+  Future<void> setPushToken(
+      {required String token, required String platform}) async {
     _requireInitialized();
     final trimmedToken = token.trim();
     if (trimmedToken.isEmpty) {
       throw ArgumentError('token is required');
     }
-    await _platform.setPushToken(token: trimmedToken, platform: platform.trim());
+    await _platform.setPushToken(
+        token: trimmedToken, platform: platform.trim());
   }
 
   Future<void> userDidAuthenticate() async {
@@ -290,7 +304,8 @@ class HawcxClient {
         case SessionErrorEvent(:final payload):
           cleanup();
           if (!completer.isCompleted) {
-            completer.completeError(HawcxSessionException(payload.code, payload.message));
+            completer.completeError(
+                HawcxSessionException(payload.code, payload.message));
           }
           break;
       }

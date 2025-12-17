@@ -5,7 +5,8 @@ import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
 import 'package:hawcx_flutter_sdk/src/platform/hawcx_flutter_sdk_platform.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-class FakeHawcxPlatform extends HawcxFlutterSdkPlatform with MockPlatformInterfaceMixin {
+class FakeHawcxPlatform extends HawcxFlutterSdkPlatform
+    with MockPlatformInterfaceMixin {
   final _events = StreamController<Object?>.broadcast();
   final calls = <Map<String, Object?>>[];
 
@@ -91,7 +92,8 @@ class FakeHawcxPlatform extends HawcxFlutterSdkPlatform with MockPlatformInterfa
   }
 
   @override
-  Future<void> setPushToken({required String token, required String platform}) async {
+  Future<void> setPushToken(
+      {required String token, required String platform}) async {
     calls.add({'method': 'setPushToken', 'token': token, 'platform': platform});
   }
 
@@ -132,7 +134,10 @@ void main() {
   });
 
   test('HawcxEvent parsing handles unknown events', () {
-    final event = HawcxEvent.fromNative({'type': 'new_event', 'payload': {'x': 1}});
+    final event = HawcxEvent.fromNative({
+      'type': 'new_event',
+      'payload': {'x': 1}
+    });
     expect(event, isA<HawcxUnknownEvent>());
     expect(event?.type, 'new_event');
   });
@@ -142,9 +147,11 @@ void main() {
     HawcxFlutterSdkPlatform.instance = platform;
 
     final client = HawcxClient(platform: platform);
-    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
 
     final auth = client.authenticate(userId: 'u');
+    expect(platform.calls.last['method'], 'authenticateV5');
     platform.emit({
       'type': 'auth_success',
       'payload': {
@@ -162,12 +169,75 @@ void main() {
     platform.close();
   });
 
+  test('HawcxClient authenticate surfaces authorization_code event', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    AuthorizationCodePayload? seen;
+    final auth = client.authenticate(
+      userId: 'u',
+      onAuthorizationCode: (payload) => seen = payload,
+    );
+
+    platform.emit({
+      'type': 'authorization_code',
+      'payload': {'code': 'abc', 'expiresIn': 60}
+    });
+    platform.emit({
+      'type': 'auth_success',
+      'payload': {'isLoginFlow': true}
+    });
+
+    await auth.future;
+    expect(seen?.code, 'abc');
+    expect(seen?.expiresIn, 60);
+
+    platform.close();
+  });
+
+  test(
+      'HawcxClient authenticate surfaces additional_verification_required event',
+      () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    AdditionalVerificationRequiredPayload? seen;
+    final auth = client.authenticate(
+      userId: 'u',
+      onAdditionalVerificationRequired: (payload) => seen = payload,
+    );
+
+    platform.emit({
+      'type': 'additional_verification_required',
+      'payload': {'sessionId': 's', 'detail': 'd'}
+    });
+    platform.emit({
+      'type': 'auth_success',
+      'payload': {'isLoginFlow': false}
+    });
+
+    await auth.future;
+    expect(seen?.sessionId, 's');
+    expect(seen?.detail, 'd');
+
+    platform.close();
+  });
+
   test('HawcxClient authenticate rejects on auth_error', () async {
     final platform = FakeHawcxPlatform();
     HawcxFlutterSdkPlatform.instance = platform;
 
     final client = HawcxClient(platform: platform);
-    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
 
     final auth = client.authenticate(userId: 'u');
     platform.emit({
@@ -177,7 +247,8 @@ void main() {
 
     await expectLater(
       auth.future,
-      throwsA(isA<HawcxAuthException>().having((e) => e.code, 'code', 'NETWORK_ERROR')),
+      throwsA(isA<HawcxAuthException>()
+          .having((e) => e.code, 'code', 'NETWORK_ERROR')),
     );
 
     platform.close();
@@ -188,14 +259,16 @@ void main() {
     HawcxFlutterSdkPlatform.instance = platform;
 
     final client = HawcxClient(platform: platform);
-    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
 
     final auth = client.authenticate(userId: 'u');
     auth.cancel();
 
     await expectLater(
       auth.future,
-      throwsA(isA<HawcxAuthException>().having((e) => e.code, 'code', HawcxAuthException.cancelledCode)),
+      throwsA(isA<HawcxAuthException>()
+          .having((e) => e.code, 'code', HawcxAuthException.cancelledCode)),
     );
 
     platform.close();
@@ -206,7 +279,8 @@ void main() {
     HawcxFlutterSdkPlatform.instance = platform;
 
     final client = HawcxClient(platform: platform);
-    await client.initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
 
     final future = client.fetchDeviceDetails();
     platform.emit({'type': 'session_success'});
@@ -214,5 +288,43 @@ void main() {
 
     platform.close();
   });
-}
 
+  test('HawcxClient webLogin resolves on session_success', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    final future = client.webLogin(' 1234 ');
+    expect(platform.calls.last, {'method': 'webLogin', 'pin': '1234'});
+    platform.emit({'type': 'session_success'});
+    await future;
+
+    platform.close();
+  });
+
+  test('HawcxClient webApprove rejects on session_error', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+
+    final client = HawcxClient(platform: platform);
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    final future = client.webApprove('t');
+    platform.emit({
+      'type': 'session_error',
+      'payload': {'code': 'INVALID_PIN', 'message': 'bad'}
+    });
+
+    await expectLater(
+      future,
+      throwsA(isA<HawcxSessionException>()
+          .having((e) => e.code, 'code', 'INVALID_PIN')),
+    );
+
+    platform.close();
+  });
+}

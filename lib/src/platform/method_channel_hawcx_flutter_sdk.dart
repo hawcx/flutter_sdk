@@ -45,7 +45,8 @@ class MethodChannelHawcxFlutterSdk extends HawcxFlutterSdkPlatform {
     required String accessToken,
     String? refreshToken,
   }) async {
-    final stored = await _channel.invokeMethod<bool>('storeBackendOAuthTokens', {
+    final stored =
+        await _channel.invokeMethod<bool>('storeBackendOAuthTokens', {
       'userId': userId,
       'accessToken': accessToken,
       if (refreshToken != null) 'refreshToken': refreshToken,
@@ -60,12 +61,14 @@ class MethodChannelHawcxFlutterSdk extends HawcxFlutterSdkPlatform {
 
   @override
   Future<void> clearSessionTokens(String userId) {
-    return _channel.invokeMethod<void>('clearSessionTokens', {'userId': userId});
+    return _channel
+        .invokeMethod<void>('clearSessionTokens', {'userId': userId});
   }
 
   @override
   Future<void> clearUserKeychainData(String userId) {
-    return _channel.invokeMethod<void>('clearUserKeychainData', {'userId': userId});
+    return _channel
+        .invokeMethod<void>('clearUserKeychainData', {'userId': userId});
   }
 
   @override
@@ -85,7 +88,8 @@ class MethodChannelHawcxFlutterSdk extends HawcxFlutterSdkPlatform {
 
   @override
   Future<void> setPushToken({required String token, required String platform}) {
-    return _channel.invokeMethod<void>('setPushToken', {'token': token, 'platform': platform});
+    return _channel.invokeMethod<void>(
+        'setPushToken', {'token': token, 'platform': platform});
   }
 
   @override
@@ -95,17 +99,20 @@ class MethodChannelHawcxFlutterSdk extends HawcxFlutterSdkPlatform {
 
   @override
   Future<bool> handlePushNotification(Map<String, Object?> payload) async {
-    final handled = await _channel.invokeMethod<bool>('handlePushNotification', payload);
+    final handled =
+        await _channel.invokeMethod<bool>('handlePushNotification', payload);
     return handled ?? false;
   }
 
   @override
   Future<void> approvePushRequest(String requestId) {
-    return _channel.invokeMethod<void>('approvePushRequest', {'requestId': requestId});
+    return _channel
+        .invokeMethod<void>('approvePushRequest', {'requestId': requestId});
   }
 
   @override
   Future<void> declinePushRequest(String requestId) {
-    return _channel.invokeMethod<void>('declinePushRequest', {'requestId': requestId});
+    return _channel
+        .invokeMethod<void>('declinePushRequest', {'requestId': requestId});
   }
 }

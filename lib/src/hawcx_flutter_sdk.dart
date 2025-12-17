@@ -11,12 +11,16 @@ class HawcxFlutterSdk {
   static Stream<HawcxEvent> get events {
     return HawcxFlutterSdkPlatform.instance.rawEvents
         .map(HawcxEvent.fromNative)
-        .whereType<HawcxEvent>();
+        .where((event) => event != null)
+        .cast<HawcxEvent>();
   }
 
-  static Stream<AuthEvent> get authEvents => events.whereType<AuthEvent>();
-  static Stream<SessionEvent> get sessionEvents => events.whereType<SessionEvent>();
-  static Stream<PushEvent> get pushEvents => events.whereType<PushEvent>();
+  static Stream<AuthEvent> get authEvents =>
+      events.where((event) => event is AuthEvent).cast<AuthEvent>();
+  static Stream<SessionEvent> get sessionEvents =>
+      events.where((event) => event is SessionEvent).cast<SessionEvent>();
+  static Stream<PushEvent> get pushEvents =>
+      events.where((event) => event is PushEvent).cast<PushEvent>();
 
   static Future<void> initialize(HawcxConfig config) {
     return HawcxFlutterSdkPlatform.instance.initialize(config.toMap());
@@ -98,11 +102,13 @@ class HawcxFlutterSdk {
     await HawcxFlutterSdkPlatform.instance.clearLastLoggedInUser();
   }
 
-  static Future<void> setApnsDeviceToken({required String tokenBase64OrHex}) async {
+  static Future<void> setApnsDeviceToken(
+      {required String tokenBase64OrHex}) async {
     if (tokenBase64OrHex.isEmpty) {
       throw ArgumentError('tokenBase64OrHex is required');
     }
-    await HawcxFlutterSdkPlatform.instance.setApnsDeviceToken(tokenBase64OrHex.trim());
+    await HawcxFlutterSdkPlatform.instance
+        .setApnsDeviceToken(tokenBase64OrHex.trim());
   }
 
   static Future<void> setFcmToken({required String token}) async {
@@ -119,14 +125,16 @@ class HawcxFlutterSdk {
     if (token.isEmpty) {
       throw ArgumentError('token is required');
     }
-    await HawcxFlutterSdkPlatform.instance.setPushToken(token: token.trim(), platform: platform.trim());
+    await HawcxFlutterSdkPlatform.instance
+        .setPushToken(token: token.trim(), platform: platform.trim());
   }
 
   static Future<void> userDidAuthenticate() async {
     await HawcxFlutterSdkPlatform.instance.userDidAuthenticate();
   }
 
-  static Future<bool> handlePushNotification(Map<String, Object?> payload) async {
+  static Future<bool> handlePushNotification(
+      Map<String, Object?> payload) async {
     return HawcxFlutterSdkPlatform.instance.handlePushNotification(payload);
   }
 
@@ -145,5 +153,6 @@ class HawcxFlutterSdk {
   }
 
   @Deprecated('Use HawcxFlutterSdkPlatform in tests instead.')
-  static HawcxAuthException authCancelledError() => HawcxAuthException.cancelled();
+  static HawcxAuthException authCancelledError() =>
+      HawcxAuthException.cancelled();
 }

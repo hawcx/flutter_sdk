@@ -29,7 +29,8 @@ class HawcxOAuthConfig {
 }
 
 class HawcxEndpoints {
-  HawcxEndpoints({required String authBaseUrl}) : authBaseUrl = authBaseUrl.trim() {
+  HawcxEndpoints({required String authBaseUrl})
+      : authBaseUrl = authBaseUrl.trim() {
     if (this.authBaseUrl.isEmpty) {
       throw ArgumentError('authBaseUrl is required');
     }
@@ -46,17 +47,16 @@ class HawcxConfig {
   HawcxConfig({
     required String projectApiKey,
     required String baseUrl,
-    HawcxOAuthConfig? oauthConfig,
-    HawcxEndpoints? endpoints,
+    this.oauthConfig,
+    this.endpoints,
   })  : projectApiKey = projectApiKey.trim(),
-        baseUrl = baseUrl.trim(),
-        oauthConfig = oauthConfig,
-        endpoints = endpoints {
+        baseUrl = baseUrl.trim() {
     if (this.projectApiKey.isEmpty) {
       throw ArgumentError('projectApiKey is required');
     }
     if (this.baseUrl.isEmpty && endpoints == null) {
-      throw ArgumentError('baseUrl is required (or provide endpoints.authBaseUrl)');
+      throw ArgumentError(
+          'baseUrl is required (or provide endpoints.authBaseUrl)');
     }
   }
 
@@ -72,4 +72,3 @@ class HawcxConfig {
         if (endpoints != null) 'endpoints': endpoints!.toMap(),
       };
 }
-

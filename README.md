@@ -69,6 +69,11 @@ final auth = client.authenticate(
   onOtpRequired: () {
     // prompt user
   },
+  onAuthorizationCode: (payload) async {
+    // If you use a backend OAuth exchange flow, send payload.code to your backend.
+    // Then persist the resulting tokens into the native secure store:
+    // await client.storeBackendOAuthTokens(userId: 'user@example.com', accessToken: '<access>', refreshToken: '<refresh>');
+  },
 );
 
 // later, when OTP entered:
@@ -78,5 +83,14 @@ final success = await auth.future;
 // success.isLoginFlow, success.accessToken, success.refreshToken
 ```
 
-The full API surface (session, web login/approve, push handling, OAuth helpers) will be expanded in subsequent phases.  
+## Web Sessions
+
+```dart
+await client.webLogin('123456');
+await client.webApprove('<web-token>');
+```
+
+`webLogin` / `webApprove` emit `session_success` or `session_error` events on the shared event stream.
+
+The full API surface (push handling, richer session/device models, example apps) will be expanded in subsequent phases.  
 See `flutter_mobile_sdk_plan.md` for the delivery roadmap.
