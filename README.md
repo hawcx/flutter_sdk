@@ -48,12 +48,11 @@ repositories {
 
 ### iOS
 
-The plugin links the Hawcx iOS SDK as a vendored xcframework (`ios/Frameworks/HawcxFramework.xcframework`).
+The plugin links the Hawcx iOS SDK as a vendored xcframework (`ios/Frameworks/HawcxFramework.xcframework`) bundled with the plugin.
 
-- If you’re consuming the published package, the release artifact must include the xcframework.
-- If you’re developing locally, follow `docs/RELEASE.md` for how to refresh the xcframework before running `pod install`.
+If you’re consuming the published package, no additional CocoaPods setup is required beyond running `pod install` in your app’s `ios/` directory.
 
-## Usage (preview)
+## Usage
 
 ```dart
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
@@ -92,5 +91,62 @@ await client.webApprove('<web-token>');
 
 `webLogin` / `webApprove` emit `session_success` or `session_error` events on the shared event stream.
 
-The full API surface (push handling, richer session/device models, example apps) will be expanded in subsequent phases.  
-See `flutter_mobile_sdk_plan.md` for the delivery roadmap.
+## Push Notifications
+
+Register a device token, forward push payloads to Hawcx, and listen for Hawcx push events.
+
+### Register Device Token
+
+Expose your platform token (APNs on iOS, FCM on Android) and register it with Hawcx:
+
+```dart
+import 'package:flutter/foundation.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+Future<void> registerHawcxPushToken(HawcxClient client) async {
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+    if (apnsToken != null) {
+      await client.setPushDeviceToken(apnsToken);
+    }
+  } else if (defaultTargetPlatform == TargetPlatform.android) {
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    if (fcmToken != null) {
+      await client.setPushDeviceToken(fcmToken);
+    }
+  }
+}
+```
+
+### Forward Push Payloads
+
+When your app receives a push, forward the payload to Hawcx so it can emit Hawcx events:
+
+```dart
+final handled = await client.handlePushNotification(
+  Map<String, Object?>.from(message.data),
+);
+```
+
+### Handle Hawcx Push Events
+
+```dart
+client.pushEvents.listen((event) async {
+  switch (event) {
+    case PushLoginRequestEvent(:final payload):
+      // Show UI and call one of:
+      await client.approvePushRequest(payload.requestId);
+      // await client.declinePushRequest(payload.requestId);
+      break;
+    case PushErrorEvent(:final payload):
+      // payload.code, payload.message
+      break;
+  }
+});
+```
+
+After your user signs in successfully, call:
+
+```dart
+await client.notifyUserAuthenticated();
+```

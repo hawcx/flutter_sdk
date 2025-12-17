@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
 import 'errors.dart';
 import 'models/config.dart';
@@ -129,9 +133,41 @@ class HawcxFlutterSdk {
         .setPushToken(token: token.trim(), platform: platform.trim());
   }
 
+  static Future<void> setPushDeviceToken(Object token) async {
+    if (kIsWeb) {
+      throw UnsupportedError(
+          'Push token registration is not supported on web platforms.');
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+        if (token is String) {
+          await setApnsDeviceToken(tokenBase64OrHex: token);
+          return;
+        }
+        if (token is List<int>) {
+          await setApnsDeviceToken(tokenBase64OrHex: base64Encode(token));
+          return;
+        }
+        throw ArgumentError(
+            'APNs token must be provided as a base64/hex string or a byte array.');
+      case TargetPlatform.android:
+        if (token is String) {
+          await setFcmToken(token: token);
+          return;
+        }
+        throw ArgumentError('FCM token must be a string on Android.');
+      default:
+        throw UnsupportedError(
+            'Unsupported platform for push token registration: $defaultTargetPlatform');
+    }
+  }
+
   static Future<void> userDidAuthenticate() async {
     await HawcxFlutterSdkPlatform.instance.userDidAuthenticate();
   }
+
+  static Future<void> notifyUserAuthenticated() => userDidAuthenticate();
 
   static Future<bool> handlePushNotification(
       Map<String, Object?> payload) async {

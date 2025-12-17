@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
 import 'package:hawcx_flutter_sdk/src/platform/hawcx_flutter_sdk_platform.dart';
@@ -140,6 +142,69 @@ void main() {
     });
     expect(event, isA<HawcxUnknownEvent>());
     expect(event?.type, 'new_event');
+  });
+
+  test('HawcxEvent parsing handles push_login_request events', () {
+    final event = HawcxEvent.fromNative({
+      'type': 'push_login_request',
+      'payload': {
+        'requestId': 'r',
+        'ipAddress': '1.2.3.4',
+        'deviceInfo': 'iPhone',
+        'timestamp': '2025-12-11T00:00:00Z',
+        'location': 'NY',
+      },
+    });
+
+    expect(event, isA<PushLoginRequestEvent>());
+    final payload = (event as PushLoginRequestEvent).payload;
+    expect(payload.requestId, 'r');
+    expect(payload.ipAddress, '1.2.3.4');
+    expect(payload.deviceInfo, 'iPhone');
+    expect(payload.timestamp, '2025-12-11T00:00:00Z');
+    expect(payload.location, 'NY');
+  });
+
+  test('HawcxClient setPushDeviceToken encodes bytes on iOS', () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    final client = HawcxClient(platform: platform);
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    await client.setPushDeviceToken([1, 2, 3]);
+    expect(platform.calls.last, {
+      'method': 'setApnsDeviceToken',
+      'token': base64Encode([1, 2, 3]),
+    });
+
+    platform.close();
+  });
+
+  test('HawcxClient setPushDeviceToken validates token types on Android',
+      () async {
+    final platform = FakeHawcxPlatform();
+    HawcxFlutterSdkPlatform.instance = platform;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    final client = HawcxClient(platform: platform);
+    await client
+        .initialize(HawcxConfig(projectApiKey: 'k', baseUrl: 'https://x'));
+
+    await client.setPushDeviceToken('fcm-token');
+    expect(
+        platform.calls.last, {'method': 'setFcmToken', 'token': 'fcm-token'});
+
+    await expectLater(
+      client.setPushDeviceToken([1, 2, 3]),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    platform.close();
   });
 
   test('HawcxClient authenticate resolves on auth_success', () async {
