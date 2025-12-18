@@ -18,6 +18,10 @@ Then:
 flutter pub get
 ```
 
+## Example App
+
+See `example/` for a runnable iOS/Android app that exercises initialization, auth/OTP, web sessions, and push handling.
+
 ## Native Setup
 
 ### Android

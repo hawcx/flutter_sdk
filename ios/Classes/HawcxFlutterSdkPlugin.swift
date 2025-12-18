@@ -3,6 +3,10 @@ import HawcxFramework
 import UIKit
 
 public class HawcxFlutterSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+  private static let authEventName = "hawcx.auth.event"
+  private static let sessionEventName = "hawcx.session.event"
+  private static let pushEventName = "hawcx.push.event"
+
   private enum ErrorCode: String {
     case config = "hawcx.config"
     case sdk = "hawcx.sdk"
@@ -521,31 +525,31 @@ private final class AuthCallbackProxy: NSObject, AuthV5Callback {
   }
 
   func onOtpRequired() {
-    emitter?.emitEvent(["type": "otp_required"])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.authEventName, "type": "otp_required"])
   }
 
   func onAuthSuccess(accessToken: String?, refreshToken: String?, isLoginFlow: Bool) {
     var payload: [String: Any] = ["isLoginFlow": isLoginFlow]
     if let accessToken, !accessToken.isEmpty { payload["accessToken"] = accessToken }
     if let refreshToken, !refreshToken.isEmpty { payload["refreshToken"] = refreshToken }
-    emitter?.emitEvent(["type": "auth_success", "payload": payload])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.authEventName, "type": "auth_success", "payload": payload])
   }
 
   func onError(errorCode: AuthV5ErrorCode, errorMessage: String) {
     let payload: [String: Any] = ["code": errorCode.rawValue, "message": errorMessage]
-    emitter?.emitEvent(["type": "auth_error", "payload": payload])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.authEventName, "type": "auth_error", "payload": payload])
   }
 
   func onAuthorizationCode(code: String, expiresIn: Int?) {
     var payload: [String: Any] = ["code": code]
     if let expiresIn { payload["expiresIn"] = expiresIn }
-    emitter?.emitEvent(["type": "authorization_code", "payload": payload])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.authEventName, "type": "authorization_code", "payload": payload])
   }
 
   func onAdditionalVerificationRequired(sessionId: String, detail: String?) {
     var payload: [String: Any] = ["sessionId": sessionId]
     if let detail, !detail.isEmpty { payload["detail"] = detail }
-    emitter?.emitEvent(["type": "additional_verification_required", "payload": payload])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.authEventName, "type": "additional_verification_required", "payload": payload])
   }
 }
 
@@ -557,11 +561,12 @@ private final class SessionCallbackProxy: NSObject, DevSessionCallback, WebLogin
   }
 
   func onSuccess() {
-    emitter?.emitEvent(["type": "session_success"])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.sessionEventName, "type": "session_success"])
   }
 
   func showError() {
     emitter?.emitEvent([
+      "name": HawcxFlutterSdkPlugin.sessionEventName,
       "type": "session_error",
       "payload": [
         "code": "session_error",
@@ -572,6 +577,7 @@ private final class SessionCallbackProxy: NSObject, DevSessionCallback, WebLogin
 
   func showError(webLoginErrorCode: WebLoginErrorCode, errorMessage: String) {
     emitter?.emitEvent([
+      "name": HawcxFlutterSdkPlugin.sessionEventName,
       "type": "session_error",
       "payload": [
         "code": webLoginErrorCode.rawValue,
@@ -596,11 +602,12 @@ private final class PushDelegateProxy: NSObject, HawcxPushAuthDelegate {
       "timestamp": details.timestamp,
     ]
     if let location = details.location { payload["location"] = location }
-    emitter?.emitEvent(["type": "push_login_request", "payload": payload])
+    emitter?.emitEvent(["name": HawcxFlutterSdkPlugin.pushEventName, "type": "push_login_request", "payload": payload])
   }
 
   func hawcx(failedToFetchLoginRequestDetails error: Error) {
     emitter?.emitEvent([
+      "name": HawcxFlutterSdkPlugin.pushEventName,
       "type": "push_error",
       "payload": [
         "code": "push_error",

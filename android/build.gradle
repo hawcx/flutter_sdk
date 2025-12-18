@@ -26,6 +26,7 @@ buildscript {
 
 allprojects {
   repositories {
+    mavenLocal()
     maven {
       url = uri("https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven")
       credentials {

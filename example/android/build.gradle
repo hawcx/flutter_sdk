@@ -1,0 +1,53 @@
+buildscript {
+    ext.kotlin_version = '1.9.22'
+    repositories {
+        maven {
+            url = uri("https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven")
+            credentials {
+                username = System.getenv("GITHUB_USER") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        maven {
+            url = uri("https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven")
+            credentials {
+                username = System.getenv("GITHUB_USER") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

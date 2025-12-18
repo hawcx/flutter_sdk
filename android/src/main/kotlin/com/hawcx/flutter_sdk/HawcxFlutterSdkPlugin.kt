@@ -7,7 +7,6 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import com.hawcx.internal.HawcxOAuthConfig
 import com.hawcx.internal.HawcxSDK
 import com.hawcx.model.PushLoginRequestDetails
 import com.hawcx.utils.AuthV5Callback
@@ -16,6 +15,10 @@ import com.hawcx.utils.DevSessionCallback
 import com.hawcx.utils.HawcxPushAuthDelegate
 import com.hawcx.utils.WebLoginCallback
 import com.hawcx.utils.WebLoginError
+
+private const val AUTH_EVENT_NAME = "hawcx.auth.event"
+private const val SESSION_EVENT_NAME = "hawcx.session.event"
+private const val PUSH_EVENT_NAME = "hawcx.push.event"
 
 class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
   private enum class ErrorCode(val value: String) {
@@ -117,19 +120,10 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
       return
     }
 
-    val oauthConfig = (args["oauthConfig"] as? Map<*, *>)?.let { oauth ->
-      val tokenEndpoint = (oauth["tokenEndpoint"] as? String)?.trim().orEmpty()
-      val clientId = (oauth["clientId"] as? String)?.trim().orEmpty()
-      val publicKeyPem = (oauth["publicKeyPem"] as? String)?.trim().orEmpty()
-      if (tokenEndpoint.isEmpty() || clientId.isEmpty() || publicKeyPem.isEmpty()) {
-        result.error(
-          ErrorCode.CONFIG.value,
-          "oauthConfig must include tokenEndpoint, clientId, and publicKeyPem",
-          null
-        )
-        return
-      }
-      HawcxOAuthConfig(tokenEndpoint, clientId, publicKeyPem)
+    // Keep the Flutter config shape aligned with other SDKs.
+    // The Android SDK may ignore oauthConfig; do not reject initialize() when it's present.
+    if (args["oauthConfig"] != null) {
+      // No-op: intentionally ignored on Android for parity and to avoid requiring client creds on-device.
     }
 
     runOnUiThread {
@@ -137,8 +131,7 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
         val sdk = HawcxSDK(
           context = context,
           projectApiKey = projectApiKey,
-          baseUrl = baseUrl,
-          oauthConfig = oauthConfig
+          baseUrl = baseUrl
         )
         hawcxSDK = sdk
         val authProxy = AuthCallbackProxy(::emitEvent)
@@ -497,7 +490,7 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
   ) : AuthV5Callback {
 
     override fun onOtpRequired() {
-      emit(mapOf("type" to "otp_required"))
+      emit(mapOf("name" to AUTH_EVENT_NAME, "type" to "otp_required"))
     }
 
     override fun onAuthSuccess(accessToken: String, refreshToken: String, isLoginFlow: Boolean) {
@@ -510,12 +503,13 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
       if (refreshToken.isNotBlank()) {
         payload["refreshToken"] = refreshToken
       }
-      emit(mapOf("type" to "auth_success", "payload" to payload))
+      emit(mapOf("name" to AUTH_EVENT_NAME, "type" to "auth_success", "payload" to payload))
     }
 
     override fun onError(errorCode: AuthV5ErrorCode, errorMessage: String) {
       emit(
         mapOf(
+          "name" to AUTH_EVENT_NAME,
           "type" to "auth_error",
           "payload" to mapOf(
             "code" to errorCode.name,
@@ -528,7 +522,7 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
     override fun onAuthorizationCode(code: String, expiresIn: Int?) {
       val payload = mutableMapOf<String, Any?>("code" to code)
       expiresIn?.let { payload["expiresIn"] = it }
-      emit(mapOf("type" to "authorization_code", "payload" to payload))
+      emit(mapOf("name" to AUTH_EVENT_NAME, "type" to "authorization_code", "payload" to payload))
     }
 
     override fun onAdditionalVerificationRequired(sessionId: String, detail: String?) {
@@ -536,7 +530,7 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
       if (!detail.isNullOrBlank()) {
         payload["detail"] = detail
       }
-      emit(mapOf("type" to "additional_verification_required", "payload" to payload))
+      emit(mapOf("name" to AUTH_EVENT_NAME, "type" to "additional_verification_required", "payload" to payload))
     }
   }
 
@@ -545,12 +539,13 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
   ) : DevSessionCallback, WebLoginCallback {
 
     override fun onSuccess() {
-      emit(mapOf("type" to "session_success"))
+      emit(mapOf("name" to SESSION_EVENT_NAME, "type" to "session_success"))
     }
 
     override fun onError() {
       emit(
         mapOf(
+          "name" to SESSION_EVENT_NAME,
           "type" to "session_error",
           "payload" to mapOf(
             "code" to "session_error",
@@ -563,6 +558,7 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
     override fun onError(webLoginErrorCode: WebLoginError, errorMessage: String) {
       emit(
         mapOf(
+          "name" to SESSION_EVENT_NAME,
           "type" to "session_error",
           "payload" to mapOf(
             "code" to webLoginErrorCode.name,
@@ -587,12 +583,13 @@ class HawcxFlutterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Ev
       if (!details.location.isNullOrBlank()) {
         payload["location"] = details.location
       }
-      emit(mapOf("type" to "push_login_request", "payload" to payload))
+      emit(mapOf("name" to PUSH_EVENT_NAME, "type" to "push_login_request", "payload" to payload))
     }
 
     override fun hawcx(failedToFetchLoginRequestDetails: Throwable) {
       emit(
         mapOf(
+          "name" to PUSH_EVENT_NAME,
           "type" to "push_error",
           "payload" to mapOf(
             "code" to "push_error",

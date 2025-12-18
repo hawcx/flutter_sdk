@@ -18,3 +18,4 @@ build/
 **/DerivedData/
 **/local.properties
 pubspec.lock
+pubspec_overrides.yaml
