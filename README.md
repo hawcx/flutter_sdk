@@ -15,7 +15,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  hawcx_flutter_sdk: ^0.0.1
+  hawcx_flutter_sdk: ^1.0.1
 ```
 
 Then:
