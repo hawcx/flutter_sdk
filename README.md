@@ -3,6 +3,12 @@
 Flutter plugin for Hawcx V5 authentication, device verification, web sessions, and push approvals.  
 This SDK delegates all crypto and network flows to the existing native Hawcx SDKs on iOS and Android.
 
+## Requirements
+
+- Flutter >= 3.19 (Dart >= 3.3)
+- iOS 17+ / Android 8+ (Android minSdk 26)
+- OAuth client credentials must stay on your backend
+
 ## Install
 
 Add to your `pubspec.yaml`:
@@ -27,7 +33,9 @@ See `example/` for a runnable iOS/Android app that exercises initialization, aut
 ### Android
 
 The plugin depends on the Hawcx Android SDK published from:
-`https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven`.
+`https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven` (public).
+
+Minimum supported Android SDK is API 26.
 
 Add the repository to your app’s Gradle repositories (typically `android/settings.gradle` or `android/build.gradle`, depending on your Gradle setup):
 
@@ -35,11 +43,6 @@ Add the repository to your app’s Gradle repositories (typically `android/setti
 repositories {
     maven {
         url = uri("https://raw.githubusercontent.com/hawcx/hawcx_android_sdk/main/maven")
-        // For private access, configure a GitHub token with read permissions.
-        credentials {
-            username = System.getenv("GITHUB_USER") ?: "<github-username>"
-            password = System.getenv("GITHUB_TOKEN") ?: "<github-token>"
-        }
         metadataSources {
             mavenPom()
             artifact()
@@ -56,7 +59,7 @@ The plugin links the Hawcx iOS SDK as a vendored xcframework (`ios/Frameworks/Ha
 
 If you’re consuming the published package, no additional CocoaPods setup is required beyond running `pod install` in your app’s `ios/` directory.
 
-## Usage
+## Quick Start
 
 ```dart
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
@@ -64,7 +67,7 @@ import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
 final client = HawcxClient();
 await client.initialize(HawcxConfig(
   projectApiKey: '<PROJECT_API_KEY>',
-  baseUrl: 'https://api.hawcx.com',
+  baseUrl: 'https://your-hawcx-host.example.com',
 ));
 
 final auth = client.authenticate(
@@ -73,9 +76,13 @@ final auth = client.authenticate(
     // prompt user
   },
   onAuthorizationCode: (payload) async {
-    // If you use a backend OAuth exchange flow, send payload.code to your backend.
+    // Forward payload.code to your backend to exchange for tokens.
     // Then persist the resulting tokens into the native secure store:
-    // await client.storeBackendOAuthTokens(userId: 'user@example.com', accessToken: '<access>', refreshToken: '<refresh>');
+    // await client.storeBackendOAuthTokens(
+    //   userId: 'user@example.com',
+    //   accessToken: '<access>',
+    //   refreshToken: '<refresh>',
+    // );
   },
 );
 
@@ -84,6 +91,53 @@ await client.submitOtp('123456');
 
 final success = await auth.future;
 // success.isLoginFlow, success.accessToken, success.refreshToken
+```
+
+> Note: `baseUrl` must be the tenant-specific Hawcx host (for example, `https://hawcx-api.hawcx.com`). The native SDK appends `/hc_auth` internally.
+
+### Authentication flow (OTP + authorization code)
+
+The SDK returns an authorization code after Hawcx authentication completes. Your frontend must send the code to your backend and redeem it using the OAuth client credentials issued for your project. Never ship `clientId`, token endpoints, or private keys inside the mobile app.
+
+After your backend responds, call `storeBackendOAuthTokens(userId, accessToken, refreshToken)` so Hawcx can securely store tokens and manage device sessions.
+
+### Backend exchange (server-side)
+
+Redeem the authorization code on your backend using the Hawcx OAuth client or your preferred language SDK. Example (Node/Express):
+
+```ts
+import express from 'express';
+import { exchangeCodeForTokenAndClaims } from '@hawcx/oauth-client';
+
+const app = express();
+app.use(express.json());
+
+app.post('/api/hawcx/login', async (req, res) => {
+  const { email, code, expires_in } = req.body ?? {};
+  if (!email || !code) {
+    return res.status(400).json({ success: false, error: 'Missing email or code' });
+  }
+
+  try {
+    const [claims, idToken] = await exchangeCodeForTokenAndClaims({
+      code,
+      oauthTokenUrl: process.env.HAWCX_OAUTH_TOKEN_ENDPOINT,
+      clientId: process.env.HAWCX_OAUTH_CLIENT_ID,
+      publicKey: process.env.HAWCX_OAUTH_PUBLIC_KEY_PEM,
+      audience: process.env.HAWCX_OAUTH_CLIENT_ID,
+      issuer: process.env.HAWCX_OAUTH_ISSUER,
+    });
+
+    return res.json({
+      success: true,
+      message: `Verified ${claims.email}`,
+      access_token: idToken,
+      refresh_token: idToken,
+    });
+  } catch (error) {
+    return res.status(401).json({ success: false, error: error.message });
+  }
+});
 ```
 
 ## Web Sessions
@@ -154,3 +208,8 @@ After your user signs in successfully, call:
 ```dart
 await client.notifyUserAuthenticated();
 ```
+
+## Support
+
+- Documentation: https://docs.hawcx.com
+- Questions? Reach out to your Hawcx solutions engineer or support@hawcx.com.

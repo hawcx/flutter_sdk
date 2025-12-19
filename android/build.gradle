@@ -51,7 +51,8 @@ android {
   compileSdkVersion 34
 
   defaultConfig {
-    minSdkVersion 21
+    // Hawcx Android SDK requires API 26+.
+    minSdkVersion 26
   }
 
   compileOptions {
