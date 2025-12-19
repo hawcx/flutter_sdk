@@ -224,7 +224,8 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
           );
         },
         onAdditionalVerificationRequired: (payload) {
-          _appendLog('Auth: Additional verification required (${payload.sessionId})');
+          _appendLog(
+              'Auth: Additional verification required (${payload.sessionId})');
           _setStatus(
             'Additional verification required: ${payload.sessionId}',
             isError: true,
