@@ -1,6 +1,6 @@
 PODS:
   - Flutter (1.0.0)
-  - hawcx_flutter_sdk (0.0.1):
+  - hawcx_flutter_sdk (1.0.2):
     - Flutter
 
 DEPENDENCIES:
@@ -15,7 +15,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  hawcx_flutter_sdk: 400392c4106beae1f42f942161facf7c401928a9
+  hawcx_flutter_sdk: 622ad855cc9e8d73a1fb53233e5c3c0592602218
 
 PODFILE CHECKSUM: d06ba88f67c8b7c3afabb86c6321c38bdf986ce0
 

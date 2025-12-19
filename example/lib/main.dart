@@ -48,6 +48,7 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
   String? _statusMessage;
   bool _statusIsError = false;
   HawcxAuthHandle? _authHandle;
+  bool _suppressCancelMessage = false;
   final List<String> _logs = <String>[];
 
   @override
@@ -116,14 +117,14 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
           'Authentication complete. Authorization code received — exchange via backend.',
           isError: false,
         );
-        _cancelAuthFlow();
+        _cancelAuthFlow(suppressMessage: true);
         break;
       case AdditionalVerificationRequiredEvent(:final payload):
         _setStatus(
           'Additional verification required: ${payload.sessionId}',
           isError: true,
         );
-        _cancelAuthFlow();
+        _cancelAuthFlow(suppressMessage: true);
         break;
       default:
         break;
@@ -208,7 +209,9 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
         _statusIsError = false;
       });
       _otpController.clear();
-      _authHandle?.cancel();
+      if (_authHandle != null) {
+        _cancelAuthFlow(suppressMessage: true);
+      }
       _authHandle = _client.authenticate(
         userId: userId,
         onOtpRequired: () {
@@ -232,6 +235,7 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
           );
         },
       );
+      _watchAuthHandle(_authHandle!);
       _appendLog('Auth: started for userId=$userId');
     });
   }
@@ -250,14 +254,36 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
       _otpRequired = false;
     });
     _authHandle = null;
+    _suppressCancelMessage = false;
   }
 
-  void _cancelAuthFlow() {
+  void _cancelAuthFlow({required bool suppressMessage}) {
+    _suppressCancelMessage = suppressMessage;
     _authHandle?.cancel();
     _authHandle = null;
     setState(() {
       _authInProgress = false;
       _otpRequired = false;
+    });
+  }
+
+  void _watchAuthHandle(HawcxAuthHandle handle) {
+    handle.future.catchError((Object error) {
+      if (error is HawcxAuthException &&
+          error.code == HawcxAuthException.cancelledCode) {
+        if (_suppressCancelMessage) {
+          _suppressCancelMessage = false;
+          return;
+        }
+        _appendLog('Auth cancelled.');
+        _setStatus('Authentication cancelled.', isError: false);
+        _endAuthFlow();
+        return;
+      }
+
+      _appendLog('Auth error: $error');
+      _setStatus('Auth error: $error', isError: true);
+      _endAuthFlow();
     });
   }
 
