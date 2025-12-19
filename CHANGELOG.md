@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.2] - 2025-12-19
+- Prepping Release v1.0.2
+- Fixed podspec file
+
 ## [1.0.1] - 2025-12-19
 - Prepping Release v1.0.1
 

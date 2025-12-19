@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'hawcx_flutter_sdk'
-  s.version          = '1.0.1'
+  s.version          = '1.0.2'
   s.summary          = 'Hawcx Flutter SDK plugin.'
   s.description      = <<-DESC
 A Flutter plugin that wraps the Hawcx native iOS SDK.
