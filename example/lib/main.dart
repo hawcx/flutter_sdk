@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
 
 import 'hawcx_config.dart';
@@ -155,8 +154,6 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
         return 'Push: push_error code=${payload.code} message=${payload.message}';
       case HawcxUnknownEvent(:final type):
         return 'Unknown: $type';
-      default:
-        return 'Unknown event';
     }
   }
 
