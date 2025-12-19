@@ -3,9 +3,9 @@ import HawcxFramework
 import UIKit
 
 public class HawcxFlutterSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
-  private static let authEventName = "hawcx.auth.event"
-  private static let sessionEventName = "hawcx.session.event"
-  private static let pushEventName = "hawcx.push.event"
+  fileprivate static let authEventName = "hawcx.auth.event"
+  fileprivate static let sessionEventName = "hawcx.session.event"
+  fileprivate static let pushEventName = "hawcx.push.event"
 
   private enum ErrorCode: String {
     case config = "hawcx.config"
@@ -110,8 +110,8 @@ public class HawcxFlutterSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
     if let oauthDict = asDictOrNil(args["oauthConfig"]) {
       do {
         oauthConfig = try makeOAuthConfig(from: oauthDict)
-      } catch let flutterError as FlutterError {
-        result(flutterError)
+      } catch let error as ConfigError {
+        result(FlutterError(code: ErrorCode.config.rawValue, message: error.localizedDescription, details: nil))
         return
       } catch {
         result(FlutterError(code: ErrorCode.config.rawValue, message: error.localizedDescription, details: nil))
@@ -478,6 +478,17 @@ public class HawcxFlutterSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
     return nil
   }
 
+  private enum ConfigError: LocalizedError {
+    case invalidOAuthConfig
+
+    var errorDescription: String? {
+      switch self {
+      case .invalidOAuthConfig:
+        return "oauthConfig must include tokenEndpoint, clientId, and publicKeyPem"
+      }
+    }
+  }
+
   private func makeOAuthConfig(from dict: [String: Any]) throws -> HawcxOAuthConfig {
     guard
       let endpointString = stringValue(dict["tokenEndpoint"]),
@@ -487,7 +498,7 @@ public class HawcxFlutterSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
       !clientId.isEmpty,
       !publicKeyPem.isEmpty
     else {
-      throw FlutterError(code: ErrorCode.config.rawValue, message: "oauthConfig must include tokenEndpoint, clientId, and publicKeyPem", details: nil)
+      throw ConfigError.invalidOAuthConfig
     }
     return HawcxOAuthConfig(tokenEndpoint: endpointURL, clientId: clientId, publicKeyPem: publicKeyPem)
   }
