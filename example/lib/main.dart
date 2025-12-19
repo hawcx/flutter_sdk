@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hawcx_flutter_sdk/hawcx_flutter_sdk.dart';
+
+import 'hawcx_config.dart';
 
 void main() {
   runApp(const HawcxExampleApp());
@@ -35,25 +36,19 @@ class HawcxExampleHome extends StatefulWidget {
 class _HawcxExampleHomeState extends State<HawcxExampleHome> {
   final HawcxClient _client = HawcxClient();
 
-  final TextEditingController _apiKeyController = TextEditingController();
-  final TextEditingController _baseUrlController = TextEditingController(
-    text: 'https://api.hawcx.com',
-  );
-  final TextEditingController _userIdController = TextEditingController();
+  final TextEditingController _userIdController =
+      TextEditingController(text: 'user@example.com');
   final TextEditingController _otpController = TextEditingController();
-  final TextEditingController _webPinController = TextEditingController();
-  final TextEditingController _webTokenController = TextEditingController();
-  final TextEditingController _pushTokenController = TextEditingController();
-  final TextEditingController _pushPayloadController = TextEditingController(
-    text: '{"request_id":"<request_id>"}',
-  );
-  final TextEditingController _pushRequestIdController = TextEditingController();
 
   StreamSubscription<HawcxEvent>? _eventsSub;
 
   bool _initialized = false;
+  bool _authInProgress = false;
+  bool _otpRequired = false;
+  String? _initError;
+  String? _statusMessage;
+  bool _statusIsError = false;
   HawcxAuthHandle? _authHandle;
-  String? _lastPushRequestId;
   final List<String> _logs = <String>[];
 
   @override
@@ -69,6 +64,14 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
           _appendLog('Event stream error: $error');
         },
       );
+      if (defaultHawcxConfig == null) {
+        _initError =
+            'Missing Hawcx config. Update example/lib/hawcx_config.dart.';
+        _appendLog(_initError!);
+        _setStatus(_initError!, isError: true);
+      } else {
+        _initialize();
+      }
     } else {
       _appendLog(
         'This example is intended for iOS/Android. Current platform: '
@@ -80,15 +83,8 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
   @override
   void dispose() {
     _eventsSub?.cancel();
-    _apiKeyController.dispose();
-    _baseUrlController.dispose();
     _userIdController.dispose();
     _otpController.dispose();
-    _webPinController.dispose();
-    _webTokenController.dispose();
-    _pushTokenController.dispose();
-    _pushPayloadController.dispose();
-    _pushRequestIdController.dispose();
     super.dispose();
   }
 
@@ -102,9 +98,36 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
   void _onEvent(HawcxEvent event) {
     _appendLog(_describeEvent(event));
 
-    if (event is PushLoginRequestEvent) {
-      _lastPushRequestId = event.payload.requestId;
-      _pushRequestIdController.text = event.payload.requestId;
+    switch (event) {
+      case AuthOtpRequiredEvent():
+        setState(() => _otpRequired = true);
+        _setStatus('OTP required', isError: false);
+        break;
+      case AuthSuccessEvent():
+        _setStatus('Authentication complete (tokens stored by SDK).',
+            isError: false);
+        _endAuthFlow();
+        break;
+      case AuthErrorEvent(:final payload):
+        _setStatus('Auth error: ${payload.message}', isError: true);
+        _endAuthFlow();
+        break;
+      case AuthorizationCodeEvent():
+        _setStatus(
+          'Authentication complete. Authorization code received — exchange via backend.',
+          isError: false,
+        );
+        _cancelAuthFlow();
+        break;
+      case AdditionalVerificationRequiredEvent(:final payload):
+        _setStatus(
+          'Additional verification required: ${payload.sessionId}',
+          isError: true,
+        );
+        _cancelAuthFlow();
+        break;
+      default:
+        break;
     }
   }
 
@@ -127,13 +150,13 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
       case SessionErrorEvent(:final payload):
         return 'Session: session_error code=${payload.code} message=${payload.message}';
       case PushLoginRequestEvent(:final payload):
-        return 'Push: push_login_request requestId=${payload.requestId} '
-            'ip=${payload.ipAddress} device=${payload.deviceInfo} time=${payload.timestamp} '
-            'location=${payload.location}';
+        return 'Push: push_login_request requestId=${payload.requestId}';
       case PushErrorEvent(:final payload):
         return 'Push: push_error code=${payload.code} message=${payload.message}';
       case HawcxUnknownEvent(:final type):
         return 'Unknown: $type';
+      default:
+        return 'Unknown event';
     }
   }
 
@@ -151,33 +174,67 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
 
   Future<void> _initialize() {
     return _runGuarded(() async {
-      final config = HawcxConfig(
-        projectApiKey: _apiKeyController.text,
-        baseUrl: _baseUrlController.text,
-      );
+      final config = defaultHawcxConfig;
+      if (config == null) {
+        _initError = 'Missing Hawcx config.';
+        _appendLog(_initError!);
+        _setStatus(_initError!, isError: true);
+        return;
+      }
       await _client.initialize(config);
       setState(() => _initialized = true);
       _appendLog('Initialized');
+      _setStatus('Initialized', isError: false);
     });
   }
 
   Future<void> _authenticate() {
     return _runGuarded(() async {
+      if (_authInProgress) {
+        _appendLog('Auth already in progress.');
+        _setStatus('Auth already in progress.', isError: true);
+        return;
+      }
+      if (_initError != null) {
+        _appendLog(_initError!);
+        _setStatus(_initError!, isError: true);
+        return;
+      }
+      if (!_initialized) {
+        await _initialize();
+      }
       final userId = _userIdController.text;
+      setState(() {
+        _authInProgress = true;
+        _otpRequired = false;
+        _statusMessage = 'Authenticating...';
+        _statusIsError = false;
+      });
+      _otpController.clear();
+      _authHandle?.cancel();
       _authHandle = _client.authenticate(
         userId: userId,
-        onOtpRequired: () => _appendLog('Auth: OTP required'),
+        onOtpRequired: () {
+          _appendLog('Auth: OTP required');
+          setState(() => _otpRequired = true);
+          _setStatus('OTP required', isError: false);
+        },
         onAuthorizationCode: (payload) {
           _appendLog('Auth: Authorization code received (${payload.code})');
+          _setStatus(
+            'Authentication complete. Authorization code received — exchange via backend.',
+            isError: false,
+          );
         },
         onAdditionalVerificationRequired: (payload) {
           _appendLog('Auth: Additional verification required (${payload.sessionId})');
+          _setStatus(
+            'Additional verification required: ${payload.sessionId}',
+            isError: true,
+          );
         },
       );
       _appendLog('Auth: started for userId=$userId');
-
-      final result = await _authHandle!.future;
-      _appendLog('Auth: completed isLoginFlow=${result.isLoginFlow}');
     });
   }
 
@@ -185,64 +242,31 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
     return _runGuarded(() async {
       await _client.submitOtp(_otpController.text);
       _appendLog('Auth: submitOtp called');
+      _setStatus('OTP submitted. Awaiting verification...', isError: false);
     });
   }
 
-  Future<void> _webLogin() {
-    return _runGuarded(() async {
-      await _client.webLogin(_webPinController.text);
-      _appendLog('Web: webLogin completed');
+  void _endAuthFlow() {
+    setState(() {
+      _authInProgress = false;
+      _otpRequired = false;
+    });
+    _authHandle = null;
+  }
+
+  void _cancelAuthFlow() {
+    _authHandle?.cancel();
+    _authHandle = null;
+    setState(() {
+      _authInProgress = false;
+      _otpRequired = false;
     });
   }
 
-  Future<void> _webApprove() {
-    return _runGuarded(() async {
-      await _client.webApprove(_webTokenController.text);
-      _appendLog('Web: webApprove completed');
-    });
-  }
-
-  Future<void> _setPushToken() {
-    return _runGuarded(() async {
-      await _client.setPushDeviceToken(_pushTokenController.text);
-      _appendLog('Push: token registered');
-    });
-  }
-
-  Future<void> _notifyUserAuthenticated() {
-    return _runGuarded(() async {
-      await _client.notifyUserAuthenticated();
-      _appendLog('Push: notifyUserAuthenticated called');
-    });
-  }
-
-  Future<void> _handlePushPayload() {
-    return _runGuarded(() async {
-      final raw = _pushPayloadController.text.trim();
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        throw ArgumentError('Push payload must decode to a JSON object');
-      }
-      final payload = <String, Object?>{};
-      decoded.forEach((key, value) {
-        payload[key.toString()] = value as Object?;
-      });
-      final handled = await _client.handlePushNotification(payload);
-      _appendLog('Push: handlePushNotification handled=$handled');
-    });
-  }
-
-  Future<void> _approvePush() {
-    return _runGuarded(() async {
-      await _client.approvePushRequest(_pushRequestIdController.text);
-      _appendLog('Push: approvePushRequest sent');
-    });
-  }
-
-  Future<void> _declinePush() {
-    return _runGuarded(() async {
-      await _client.declinePushRequest(_pushRequestIdController.text);
-      _appendLog('Push: declinePushRequest sent');
+  void _setStatus(String message, {required bool isError}) {
+    setState(() {
+      _statusMessage = message;
+      _statusIsError = isError;
     });
   }
 
@@ -281,33 +305,6 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
                   ),
                 ),
               _section(
-                title: 'Config',
-                children: [
-                  TextField(
-                    controller: _apiKeyController,
-                    decoration: const InputDecoration(
-                      labelText: 'Project API Key',
-                      hintText: 'Enter your Hawcx project api key',
-                    ),
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _baseUrlController,
-                    decoration: const InputDecoration(
-                      labelText: 'Base URL',
-                      hintText: 'https://api.hawcx.com',
-                    ),
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: isMobile ? _initialize : null,
-                    child: Text(_initialized ? 'Initialized' : 'Initialize'),
-                  ),
-                ],
-              ),
-              _section(
                 title: 'Authenticate',
                 children: [
                   TextField(
@@ -320,138 +317,40 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: isMobile && _initialized ? _authenticate : null,
+                    onPressed: isMobile && _initialized && !_authInProgress
+                        ? _authenticate
+                        : null,
                     child: const Text('Authenticate'),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _otpController,
-                    decoration: const InputDecoration(
-                      labelText: 'OTP',
-                      hintText: '123456',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: isMobile && _initialized ? _submitOtp : null,
-                    child: const Text('Submit OTP'),
-                  ),
-                ],
-              ),
-              _section(
-                title: 'Web Sessions',
-                children: [
-                  TextField(
-                    controller: _webPinController,
-                    decoration: const InputDecoration(
-                      labelText: 'Web PIN',
-                      hintText: 'PIN from web login screen',
-                    ),
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: isMobile && _initialized ? _webLogin : null,
-                    child: const Text('Web Login'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _webTokenController,
-                    decoration: const InputDecoration(
-                      labelText: 'Web Approve Token',
-                      hintText: 'Token from web approve screen',
-                    ),
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: isMobile && _initialized ? _webApprove : null,
-                    child: const Text('Web Approve'),
-                  ),
-                ],
-              ),
-              _section(
-                title: 'Push',
-                children: [
-                  Text(
-                    'For quick validation you can paste tokens/payloads manually.\n'
-                    'iOS: provide APNs token as base64 or hex string.\n'
-                    'Android: provide FCM token as string.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _pushTokenController,
-                    decoration: const InputDecoration(
-                      labelText: 'Push Device Token',
-                      hintText: 'APNs (base64/hex) or FCM token',
-                    ),
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: isMobile && _initialized ? _setPushToken : null,
-                          child: const Text('Register Token'),
-                        ),
+                  if (_statusMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _statusMessage!,
+                      style: TextStyle(
+                        color: _statusIsError
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isMobile && _initialized
-                              ? _notifyUserAuthenticated
-                              : null,
-                          child: const Text('Notify Authenticated'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _pushPayloadController,
-                    decoration: const InputDecoration(
-                      labelText: 'Push Payload (JSON)',
-                      hintText: '{"request_id":"..."}',
                     ),
-                    minLines: 3,
-                    maxLines: 6,
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: isMobile && _initialized ? _handlePushPayload : null,
-                    child: const Text('Handle Push Payload'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _pushRequestIdController,
-                    decoration: InputDecoration(
-                      labelText: 'Push Request ID',
-                      hintText: _lastPushRequestId ?? '<requestId>',
+                  ],
+                  if (_otpRequired) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _otpController,
+                      decoration: const InputDecoration(
+                        labelText: 'OTP',
+                        hintText: '123456',
+                      ),
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      keyboardType: TextInputType.number,
                     ),
-                    autocorrect: false,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: isMobile && _initialized ? _approvePush : null,
-                          child: const Text('Approve'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isMobile && _initialized ? _declinePush : null,
-                          child: const Text('Decline'),
-                        ),
-                      ),
-                    ],
-                  ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: isMobile && _initialized ? _submitOtp : null,
+                      child: const Text('Submit OTP'),
+                    ),
+                  ],
                 ],
               ),
               _section(
@@ -493,4 +392,3 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
     );
   }
 }
-

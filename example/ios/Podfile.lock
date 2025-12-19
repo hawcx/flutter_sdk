@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - hawcx_flutter_sdk (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - hawcx_flutter_sdk (from `.symlinks/plugins/hawcx_flutter_sdk/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  hawcx_flutter_sdk:
+    :path: ".symlinks/plugins/hawcx_flutter_sdk/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  hawcx_flutter_sdk: 400392c4106beae1f42f942161facf7c401928a9
+
+PODFILE CHECKSUM: d06ba88f67c8b7c3afabb86c6321c38bdf986ce0
+
+COCOAPODS: 1.16.2
