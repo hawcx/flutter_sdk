@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+    show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
+import 'package:http/http.dart' as http;
 
 import 'errors.dart';
 import 'models/config.dart';
@@ -34,7 +35,17 @@ class HawcxClient {
   StreamSubscription<AuthEvent>? _authSubscription;
   StreamSubscription<SessionEvent>? _sessionSubscription;
 
+  // Configuration stored for MFA API calls
+  String? _baseUrl;
+  String? _apiKey;
+
+  // Current auth session state
+  String? _currentUserId;
+  String? _currentSessionId;
+
   Future<void> initialize(HawcxConfig config) async {
+    _baseUrl = config.baseUrl;
+    _apiKey = config.projectApiKey;
     await _platform.initialize(config.toMap());
     _initialized = true;
   }
@@ -57,11 +68,14 @@ class HawcxClient {
       throw ArgumentError('userId is required');
     }
 
+    _currentUserId = trimmedUserId;
+    _currentSessionId = null;
     final completer = Completer<AuthSuccessPayload>();
     late final void Function() cleanup;
     cleanup = () {
       _authSubscription?.cancel();
       _authSubscription = null;
+      _currentSessionId = null;
     };
 
     _authSubscription = authEvents.listen((event) {
@@ -74,6 +88,16 @@ class HawcxClient {
           onAuthorizationCode?.call(payload);
           break;
         case AdditionalVerificationRequiredEvent(:final payload):
+          // Store sessionId for resend functionality
+          _currentSessionId = payload.sessionId;
+          // Auto-trigger MFA OTP send when additional verification is required
+          _initiateMfa().then((result) {
+            if (result.success) {
+              debugPrint('[HawcxClient] MFA OTP sent for session: ${payload.sessionId}');
+            } else {
+              debugPrint('[HawcxClient] MFA initiate failed: ${result.error}');
+            }
+          });
           onAdditionalVerificationRequired?.call(payload);
           break;
         case AuthSuccessEvent(:final payload):
@@ -124,6 +148,117 @@ class HawcxClient {
       throw ArgumentError('otp is required');
     }
     await _platform.submitOtpV5(trimmed);
+  }
+
+  /// Resend MFA OTP. Call this when user requests to resend the verification code.
+  /// Returns [MfaInitiateResult] indicating success or failure.
+  Future<MfaInitiateResult> resendMfaOtp() async {
+    _requireInitialized();
+    if (_currentSessionId == null) {
+      return MfaInitiateResult.failure('No active MFA session');
+    }
+    return _initiateMfa();
+  }
+
+  /// Verify MFA OTP. Call this with the OTP received via email/SMS.
+  /// Returns [MfaVerifyResult] with auth code on success.
+  Future<MfaVerifyResult> verifyMfaOtp({
+    required String otp,
+    bool rememberMe = true,
+  }) async {
+    _requireInitialized();
+    if (_currentUserId == null || _currentSessionId == null) {
+      return MfaVerifyResult.failure('No active MFA session');
+    }
+    return _verifyMfa(otp: otp, rememberMe: rememberMe);
+  }
+
+  /// Internal method to call Hawcx backend to verify MFA OTP.
+  Future<MfaVerifyResult> _verifyMfa({
+    required String otp,
+    required bool rememberMe,
+  }) async {
+    if (_baseUrl == null || _apiKey == null) {
+      return MfaVerifyResult.failure('SDK not configured');
+    }
+
+    final url = '$_baseUrl/hc_auth/v5/mfa/verify';
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': _apiKey!,
+        },
+        body: jsonEncode({
+          'userid': _currentUserId,
+          'session_id': _currentSessionId,
+          'verification_data': otp,
+          'remember_me': rememberMe,
+        }),
+      );
+
+      debugPrint('[HawcxClient] mfa/verify response: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return MfaVerifyResult.success(
+          code: body['code'] as String? ?? body['token'] as String?,
+        );
+      }
+
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>;
+      return MfaVerifyResult.failure(
+        errorBody['detail'] as String? ?? 'MFA verification failed',
+      );
+    } catch (e) {
+      debugPrint('[HawcxClient] mfa/verify error: $e');
+      return MfaVerifyResult.failure(e.toString());
+    }
+  }
+
+  /// Internal method to call Hawcx backend to send MFA OTP.
+  /// Called automatically after cipher verification and manually via [resendMfaOtp].
+  Future<MfaInitiateResult> _initiateMfa() async {
+    if (_baseUrl == null || _apiKey == null) {
+      return MfaInitiateResult.failure('SDK not configured');
+    }
+    if (_currentUserId == null || _currentSessionId == null) {
+      return MfaInitiateResult.failure('No active auth session');
+    }
+
+    final url = '$_baseUrl/hc_auth/v5/mfa/initiate';
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': _apiKey!,
+        },
+        body: jsonEncode({
+          'userid': _currentUserId,
+          'session_id': _currentSessionId,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return MfaInitiateResult.success(
+          method: body['method'] as String? ?? 'email',
+          phoneMasked: body['phone_masked'] as String?,
+        );
+      }
+
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>;
+      return MfaInitiateResult.failure(
+        errorBody['detail'] as String? ?? 'MFA initiation failed',
+      );
+    } catch (e) {
+      debugPrint('[HawcxClient] mfa/initiate error: $e');
+      return MfaInitiateResult.failure(e.toString());
+    }
   }
 
   Future<void> fetchDeviceDetails(
@@ -370,4 +505,67 @@ class HawcxAuthHandle {
 
   final Future<AuthSuccessPayload> future;
   final void Function() cancel;
+}
+
+/// Result of MFA initiation (sending OTP).
+class MfaInitiateResult {
+  MfaInitiateResult._({
+    required this.success,
+    this.method,
+    this.phoneMasked,
+    this.error,
+  });
+
+  factory MfaInitiateResult.success({
+    required String method,
+    String? phoneMasked,
+  }) {
+    return MfaInitiateResult._(
+      success: true,
+      method: method,
+      phoneMasked: phoneMasked,
+    );
+  }
+
+  factory MfaInitiateResult.failure(String error) {
+    return MfaInitiateResult._(success: false, error: error);
+  }
+
+  /// Whether the OTP was successfully sent.
+  final bool success;
+
+  /// MFA method used ('email' or 'sms').
+  final String? method;
+
+  /// Masked phone number if SMS method (e.g., '+1***1234').
+  final String? phoneMasked;
+
+  /// Error message if [success] is false.
+  final String? error;
+}
+
+/// Result of MFA verification.
+class MfaVerifyResult {
+  MfaVerifyResult._({
+    required this.success,
+    this.code,
+    this.error,
+  });
+
+  factory MfaVerifyResult.success({String? code}) {
+    return MfaVerifyResult._(success: true, code: code);
+  }
+
+  factory MfaVerifyResult.failure(String error) {
+    return MfaVerifyResult._(success: false, error: error);
+  }
+
+  /// Whether the MFA OTP was successfully verified.
+  final bool success;
+
+  /// Authorization code returned on success (for token exchange).
+  final String? code;
+
+  /// Error message if [success] is false.
+  final String? error;
 }
