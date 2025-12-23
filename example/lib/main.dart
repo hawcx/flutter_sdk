@@ -268,7 +268,7 @@ class _HawcxExampleHomeState extends State<HawcxExampleHome> {
   }
 
   void _watchAuthHandle(HawcxAuthHandle handle) {
-    handle.future.catchError((Object error) {
+    handle.future.then<void>((_) {}, onError: (Object error, StackTrace stack) {
       if (error is HawcxAuthException &&
           error.code == HawcxAuthException.cancelledCode) {
         if (_suppressCancelMessage) {
