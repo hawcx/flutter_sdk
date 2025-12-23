@@ -1,6 +1,6 @@
 name: hawcx_flutter_sdk
 description: Hawcx Flutter SDK plugin providing V5 auth, session, and push flows via native Hawcx SDKs.
-version: 1.0.2
+version: 1.0.3
 homepage: https://hawcx.com
 repository: https://github.com/hawcx/hawcx_flutter_sdk
 

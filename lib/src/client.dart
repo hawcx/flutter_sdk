@@ -93,7 +93,8 @@ class HawcxClient {
           // Auto-trigger MFA OTP send when additional verification is required
           _initiateMfa().then((result) {
             if (result.success) {
-              debugPrint('[HawcxClient] MFA OTP sent for session: ${payload.sessionId}');
+              debugPrint(
+                  '[HawcxClient] MFA OTP sent for session: ${payload.sessionId}');
             } else {
               debugPrint('[HawcxClient] MFA initiate failed: ${result.error}');
             }
