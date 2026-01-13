@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.4] - 2026-01-13
+- Fix iOS xcframework Swift interface compatibility so `HawcxSDK` init/methods are visible on older Xcode toolchains.
+
 ## [1.0.3] - 2025-12-22
 - Add MFA initiate/verify HTTP methods for mobile auth flow
 - Auto-trigger MFA OTP send after cipher verification
