@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.5] - 2026-01-21
+- Android biometrics restriction is now optional
+
 ## [1.0.4] - 2026-01-13
 - Fix iOS xcframework Swift interface compatibility so `HawcxSDK` init/methods are visible on older Xcode toolchains.
 

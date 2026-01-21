@@ -1,5 +1,5 @@
 group 'com.hawcx.flutter_sdk'
-version '1.0.4'
+version '1.0.5'
 
 buildscript {
   ext.kotlin_version = '2.2.20'
@@ -67,5 +67,5 @@ android {
 
 dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-  api "api.hawcx:hawcx:5.1.2"
+  api "api.hawcx:hawcx:5.1.4"
 }
