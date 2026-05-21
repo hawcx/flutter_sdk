@@ -5,12 +5,15 @@
 flutter_mobile_sdk_plan.md
 docs/RELEASE.md
 local-release/
+plans/
 
 # Tooling / CI
 .github/
 
 # Misc build and editor artifacts (redundant with .gitignore but explicit)
 .dart_tool/
+android/.gradle/
+**/.gradle/
 .idea/
 .vscode/
 build/

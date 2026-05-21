@@ -34,6 +34,7 @@ pubspec_overrides.yaml
 .tool-versions
 
 # Android related
+**/.gradle/
 **/gradle-wrapper.jar
 **/local.properties
 **/GeneratedPluginRegistrant.java
@@ -57,3 +58,4 @@ pubspec_overrides.yaml
 flutter_mobile_sdk_plan.md
 docs/RELEASE.md
 local-release/
+plans/
